@@ -10,6 +10,16 @@ import type {
 
 export class DetailedPointGenerator {
   
+  // デバッグ用：強制的に特殊アニメーションを生成するフラグ
+  private static debugForceSpecialAnimation: DetailedPointEndReason | null = null;
+  private static debugCounter = 0;
+  
+  // デバッグ用：特殊アニメーションを強制的に生成
+  static setDebugForceAnimation(reason: DetailedPointEndReason | null) {
+    this.debugForceSpecialAnimation = reason;
+    console.log('🔧 Debug: Force animation set to:', reason);
+  }
+  
   // 基本的なPointResultから詳細なDetailedPointResultを生成
   static generateDetailedResult(
     basicResult: PointResult,
@@ -74,6 +84,22 @@ export class DetailedPointGenerator {
     category: PointResultCategory,
     isServe: boolean
   ): DetailedPointEndReason {
+    
+    // デバッグ用：強制的に特定のアニメーションを生成
+    if (this.debugForceSpecialAnimation) {
+      const forced = this.debugForceSpecialAnimation;
+      this.debugCounter++;
+      console.log(`🔧 Debug: Forcing animation ${this.debugCounter}: ${forced}`);
+      
+      // 3回強制生成したら自動リセット
+      if (this.debugCounter >= 3) {
+        this.debugForceSpecialAnimation = null;
+        this.debugCounter = 0;
+        console.log('🔧 Debug: Auto-reset after 3 forced animations');
+      }
+      
+      return forced;
+    }
     
     const random = Math.random();
     
