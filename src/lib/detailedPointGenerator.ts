@@ -40,7 +40,7 @@ export class DetailedPointGenerator {
       category,
       winner: basicResult.winner,
       trajectory: ballTrajectory,
-      hasNetHit: !!ballTrajectory.hitNetAt
+      hasNetHit: !!(ballTrajectory as any).hitNetAt
     });
     
     return result;
@@ -379,7 +379,20 @@ export class DetailedPointGenerator {
       'missed_return': ['racket_whiff'],
       'passing_shot': ['winner_shot', 'crowd_excited'],
       'volley_winner': ['volley_hit', 'crowd_light'],
-      // ... 他の効果音マッピング
+      'service_winner': ['service_winner', 'crowd_roar'],
+      'double_fault': ['double_fault', 'crowd_disappointed'],
+      'net_cord': ['ball_net', 'crowd_surprised'],
+      'touch_net': ['ball_net'],
+      'out_sideline': ['ball_bounce_hard'],
+      'out_long': ['ball_bounce_hard'],
+      'out_wide': ['ball_bounce_hard'],
+      'late_swing': ['racket_whiff'],
+      'misjudged': ['racket_whiff'],
+      'overwhelmed': ['racket_whiff'],
+      'drop_shot': ['drop_shot', 'crowd_excited'],
+      'lob_winner': ['lob_shot', 'crowd_excited'],
+      'foot_fault': ['foot_fault', 'crowd_disappointed'],
+      'time_violation': ['time_violation', 'crowd_disappointed']
     };
     
     return effects[reason] || ['point_end'];

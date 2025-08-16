@@ -16,7 +16,7 @@ import { AudioStatus } from '@/components/AudioProvider';
 import { AudioControls } from '@/components/AudioControls';
 import { useGameAudio } from '@/hooks/useGameAudio';
 import { DetailedPointGenerator } from '@/lib/detailedPointGenerator';
-import type { DetailedPointResult } from '@/types/tennis';
+import type { DetailedPointResult, CoachInstruction } from '@/types/tennis';
 
 export default function Home() {
   const {
@@ -32,18 +32,16 @@ export default function Home() {
     lastInterventionResult,
     rallyViewEnabled,
     currentRallySequence,
-    isRallyPlaying,
     setPlayers,
     startMatch,
     handleIntervention,
     clearLastPointResult,
     clearInterventionResult,
     setRallyViewEnabled,
-    clearRallySequence,
-    setRallyPlaying
+    clearRallySequence
   } = useAppStore();
 
-  const [animationEnabled, setAnimationEnabled] = useState(true);
+  const [animationEnabled] = useState(true);
   
   // 詳細ポイント結果管理
   const [currentDetailedResult, setCurrentDetailedResult] = useState<DetailedPointResult | null>(null);
@@ -69,8 +67,17 @@ export default function Home() {
 
   // ポイント結果から詳細結果を生成
   useEffect(() => {
+    console.log('📊 Point result change detected:', {
+      hasLastPointResult: !!lastPointResult,
+      hasHomePlayer: !!homePlayer,
+      hasAwayPlayer: !!awayPlayer,
+      pointResultReason: lastPointResult?.reason,
+      currentServer: currentMatch?.currentServer
+    });
+    
     if (lastPointResult && homePlayer && awayPlayer) {
       try {
+        console.log('🔄 Generating detailed result from basic point result...');
         const detailedResult = DetailedPointGenerator.generateDetailedResult(
           lastPointResult, 
           homePlayer, 
@@ -78,12 +85,18 @@ export default function Home() {
           currentMatch?.currentServer === 'home' || currentMatch?.currentServer === 'away'
         );
         setCurrentDetailedResult(detailedResult);
-        console.log('🎬 Generated detailed result:', detailedResult);
+        console.log('✅ Successfully set detailed result:', {
+          reason: detailedResult.detailedReason,
+          category: detailedResult.category,
+          hasTrajectory: !!detailedResult.ballTrajectory,
+          winner: detailedResult.winner
+        });
       } catch (error) {
-        console.error('Failed to generate detailed result:', error);
+        console.error('❌ Failed to generate detailed result:', error);
         setCurrentDetailedResult(null);
       }
     } else {
+      console.log('⚠️ Clearing detailed result - missing requirements');
       setCurrentDetailedResult(null);
     }
   }, [lastPointResult, homePlayer, awayPlayer, currentMatch?.currentServer]);
@@ -125,9 +138,9 @@ export default function Home() {
     setPlayers(home, away);
   };
 
-  const handleInterventionWithAudio = (instructionId: string) => {
+  const handleInterventionWithAudio = (instruction: CoachInstruction | null) => {
     // UI sound is now handled by InterventionModal, detailed audio by useEffect
-    handleIntervention(instructionId);
+    handleIntervention(instruction);
   };
 
   return (
@@ -217,11 +230,9 @@ export default function Home() {
               homePlayer={homePlayer}
               awayPlayer={awayPlayer}
               onRallyComplete={() => {
-                setRallyPlaying(false);
                 clearRallySequence();
               }}
               isPlaying={true}
-              setRallyPlaying={setRallyPlaying}
               detailedResult={currentDetailedResult}
             />
           </div>

@@ -192,13 +192,15 @@ export default function TennisCourtView({
       const flashRadius = progress * 60 * intensity;
       const flashAlpha = Math.sin(progress * Math.PI * 6) * 0.6 + 0.4; // 点滅
       
-      // 放射状の光線
+      // 放射状の光線（固定パターンでちらつき防止）
       ctx.strokeStyle = `rgba(255, 255, 100, ${flashAlpha * (1 - progress * 0.5)})`;
       ctx.lineWidth = 3;
       
       for (let i = 0; i < 12; i++) {
         const angle = (i / 12) * Math.PI * 2;
-        const rayLength = flashRadius * (0.5 + Math.random() * 0.5);
+        // Math.random()を削除して固定長にする + 少しの変動はprogressで
+        const rayVariation = 0.7 + 0.3 * Math.sin(progress * Math.PI * 4 + i);
+        const rayLength = flashRadius * rayVariation;
         const startX = acePos.x;
         const startY = acePos.y;
         const endX = startX + Math.cos(angle) * rayLength;
@@ -428,12 +430,26 @@ export default function TennisCourtView({
 
   // 詳細ポイント結果による特殊アニメーション
   useEffect(() => {
-    if (!detailedResult || !detailedResult.detailedReason) return;
+    console.log('🎬 DetailedResult useEffect triggered:', {
+      hasDetailedResult: !!detailedResult,
+      reason: detailedResult?.detailedReason,
+      rallySequence: !!rallySequence,
+      isPlaying,
+      rallyLength: rallySequence?.shots?.length
+    });
+    
+    if (!detailedResult || !detailedResult.detailedReason) {
+      console.log('❌ No detailed result or reason, skipping special animations');
+      return;
+    }
     
     const reason = detailedResult.detailedReason;
+    console.log(`🎯 Processing special animation for: ${reason}`);
     
     // エース系 - 特別なボールアニメーション
     if (reason === 'ace_serve' || reason === 'service_winner') {
+      console.log('⚡ Starting ACE animation sequence');
+      
       // エース音響を即座に再生
       const aceType = reason === 'ace_serve' ? 'serve' : 'return';
       playAceAudio(aceType, detailedResult.intensity || 1.0);
@@ -444,8 +460,7 @@ export default function TennisCourtView({
         detailedResult.ballTrajectory.endPosition,
         'ace',
         () => {
-          // エース完了後の処理
-          console.log('🎾 Ace animation completed');
+          console.log('✅ Ace ball animation completed');
         }
       );
       
@@ -457,31 +472,38 @@ export default function TennisCourtView({
     }
     // ネット系アニメーション
     else if (reason === 'hit_net' || reason === 'net_cord') {
+      console.log('🥅 Starting NET HIT animation sequence');
       executeSpecialAnimation('net_hit', {
         netHitPosition: detailedResult.ballTrajectory.hitNetAt || { x: 0.5, y: 0.5 }
       });
     }
     // アウト系アニメーション  
     else if (reason === 'out_baseline' || reason === 'out_sideline' || reason === 'out_long' || reason === 'out_wide') {
+      console.log('💥 Starting OUT animation sequence');
       executeSpecialAnimation('out_bounce', {
         outBouncePosition: detailedResult.ballTrajectory.endPosition
       });
     }
     // みのがし系アニメーション - 特別なボールアニメーション
     else if (reason === 'missed_return' || reason === 'late_swing' || reason === 'misjudged') {
+      console.log('👻 Starting MISSED BALL animation sequence');
+      
       // 見逃し用の特殊ボールアニメーション（コート外まで）
       animateSpecialBall(
         detailedResult.ballTrajectory.startPosition,
         detailedResult.ballTrajectory.endPosition,
         'missed_ball',
         () => {
-          console.log('🎾 Missed ball animation completed');
+          console.log('✅ Missed ball animation completed');
         }
       );
       
       executeSpecialAnimation('missed_ball', {
         ballPassPosition: detailedResult.ballTrajectory.endPosition
       });
+    }
+    else {
+      console.log(`⚠️ No special animation for reason: ${reason}`);
     }
   }, [detailedResult]);
 
@@ -492,8 +514,19 @@ export default function TennisCourtView({
 
   // ラリーアニメーション実行
   useEffect(() => {
-    if (!rallySequence || !isPlaying) return;
+    console.log('🎾 Rally animation useEffect triggered:', {
+      hasRallySequence: !!rallySequence,
+      isPlaying,
+      shotCount: rallySequence?.shots?.length,
+      winReason: rallySequence?.winReason
+    });
     
+    if (!rallySequence || !isPlaying) {
+      console.log('❌ Rally animation skipped - no sequence or not playing');
+      return;
+    }
+    
+    console.log('✅ Starting rally animation with', rallySequence.shots.length, 'shots');
     let shotIndex = 0;
     let isCompleted = false;
     
@@ -508,6 +541,7 @@ export default function TennisCourtView({
       
       if (shotIndex >= rallySequence.shots.length) {
         // ラリー完了
+        console.log('🏁 Rally animation completed - all shots played');
         isCompleted = true;
         if (setRallyPlaying) {
           setRallyPlaying(false);
@@ -519,6 +553,14 @@ export default function TennisCourtView({
       }
       
       const shot = rallySequence.shots[shotIndex];
+      console.log(`🎯 Playing shot ${shotIndex + 1}/${rallySequence.shots.length}:`, {
+        player: shot.player,
+        shotType: shot.shotType,
+        power: shot.power,
+        isWinner: shot.isWinner,
+        isError: shot.isError
+      });
+      
       setCurrentShotIndex(shotIndex);
       setIsTransitioning(true);
       
@@ -545,7 +587,7 @@ export default function TennisCourtView({
           setIsTransitioning(false);
           
           // ラケット打撃音を再生（ショット開始時）
-          const shotIntensity = shot.power === 'power' ? 0.9 : shot.power === 'medium' ? 0.6 : 0.3;
+          const shotIntensity = shot.power === 'hard' ? 0.9 : shot.power === 'medium' ? 0.6 : 0.3;
           playRallyHit(shotIntensity, shot.shotType);
           
           // ボール移動（アニメーション）

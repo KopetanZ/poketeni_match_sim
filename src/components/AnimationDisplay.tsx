@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AnimationEngine } from '@/lib/animationEngine';
 import { getAnimationTemplate } from '@/lib/animationTemplateData';
 import { PointResult } from '@/types/tennis';
@@ -21,16 +21,15 @@ export default function AnimationDisplay({
 }: AnimationDisplayProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [animationEngine, setAnimationEngine] = useState<AnimationEngine | null>(null);
-  const [currentStep, setCurrentStep] = useState<string>('');
   
   // アニメーションコントローラー（速度をさらに遅くして見やすく）
-  const animationController: AnimationController = {
+  const animationController = useMemo<AnimationController>(() => ({
     currentAnimation: null,
     isPlaying: isPlaying,
     canSkip: true,
     progress: 0,
     speed: 0.15 // 0.15倍速で約3倍の時間をかける
-  };
+  }), [isPlaying]);
 
   useEffect(() => {
     if (!pointResult || !isEnabled || !pointResult.animationTemplate) {
@@ -94,18 +93,16 @@ export default function AnimationDisplay({
       animationController, 
       () => {
         setIsPlaying(false);
-        setCurrentStep('');
+
         onAnimationComplete();
       },
-      (step: string) => {
-        setCurrentStep(step);
-      }
+
     );
     
     setAnimationEngine(engine);
     engine.executeAnimation(customTemplate);
 
-  }, [pointResult, isEnabled, onAnimationComplete]);
+  }, [pointResult, isEnabled, onAnimationComplete, animationController]);
 
   const handleSkip = () => {
     if (animationEngine && animationController.canSkip) {
@@ -150,23 +147,3 @@ export default function AnimationDisplay({
   );
 }
 
-// ステップ表示名の変換
-function getStepDisplayName(step: string): string {
-  const stepNames: Record<string, string> = {
-    'play_trail': '🌟 トレイル効果',
-    'spawn_particles': '✨ パーティクル生成',
-    'play_sound': '🔊 効果音再生',
-    'camera_shake': '📱 カメラシェイク',
-    'camera_zoom': '🔍 カメラズーム',
-    'ui_cutin': '📢 カットイン表示',
-    'ui_flash': '⚡ フラッシュ効果',
-    'ui_score_bump': '📊 スコア演出',
-    'player_highlight': '👤 プレイヤー強調',
-    'player_glow': '✨ プレイヤー発光',
-    'screen_pulse': '💥 画面パルス',
-    'vibrate': '📳 振動効果',
-    'crowd_pop': '👏 観客反応'
-  };
-  
-  return stepNames[step] || step;
-}

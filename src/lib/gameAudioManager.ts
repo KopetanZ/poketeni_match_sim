@@ -32,9 +32,9 @@ export class GameAudioManager {
     try {
       // 勝者判定
       const winner = pointResult.winner;
-      const isGamePoint = pointResult.isGamePoint || false;
-      const isSetPoint = pointResult.isSetPoint || false;
-      const isMatchPoint = pointResult.isMatchPoint || false;
+      const isGamePoint = false; // デフォルト値
+      const isSetPoint = false;  // デフォルト値
+      const isMatchPoint = false; // デフォルト値
 
       // 連続勝利カウント更新
       if (this.lastPointWinner === winner) {
@@ -45,11 +45,11 @@ export class GameAudioManager {
       }
 
       // 特殊なポイントタイプの判定
-      if (pointResult.type === 'ace') {
+      if (pointResult.reason === 'ace') {
         this.playAceSound();
-      } else if (pointResult.type === 'winner') {
+      } else if (pointResult.reason === 'service_winner' || pointResult.reason === 'return_winner' || pointResult.reason === 'volley_winner' || pointResult.reason === 'stroke_winner') {
         this.playWinnerSound();
-      } else if (pointResult.type === 'unforced_error') {
+      } else if (pointResult.reason === 'opponent_error') {
         this.playErrorSound();
       } else {
         this.playRegularPointSound();
@@ -67,7 +67,7 @@ export class GameAudioManager {
       // 観客反応
       this.playCrowdReaction(pointResult, isMatchPoint, isSetPoint, isGamePoint);
 
-      console.log(`🎵 Point audio: ${pointResult.type} by ${winner} (consecutive: ${this.consecutiveWins})`);
+      console.log(`🎵 Point audio: ${pointResult.reason} by ${winner} (consecutive: ${this.consecutiveWins})`);
     } catch (error) {
       console.error('Failed to play point result audio:', error);
     }
@@ -151,10 +151,10 @@ export class GameAudioManager {
     if (isMatchPoint) {
       intensity = 'roar';
       volume = 1.0 * this.config.crowdIntensityMultiplier;
-    } else if (isSetPoint || pointResult.type === 'ace') {
+    } else if (isSetPoint || pointResult.reason === 'ace') {
       intensity = 'excited';
       volume = 0.8 * this.config.crowdIntensityMultiplier;
-    } else if (isGamePoint || pointResult.type === 'winner' || this.consecutiveWins >= 3) {
+    } else if (isGamePoint || (pointResult.reason === 'service_winner' || pointResult.reason === 'return_winner' || pointResult.reason === 'volley_winner' || pointResult.reason === 'stroke_winner') || this.consecutiveWins >= 3) {
       intensity = 'excited';
       volume = 0.7 * this.config.crowdIntensityMultiplier;
     }
@@ -173,7 +173,7 @@ export class GameAudioManager {
   playRallyHitSound(shotIntensity: number = 0.5, shotType: string = 'normal'): void {
     if (!this.config.enableRacketSounds) return;
 
-    let soundId = TENNIS_SOUNDS.RACKET_MEDIUM;
+    let soundId: string = TENNIS_SOUNDS.RACKET_MEDIUM;
     let volume = 0.6;
 
     // 打撃強度に応じて音を選択
