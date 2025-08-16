@@ -190,9 +190,9 @@ export const COACH_INSTRUCTIONS: CoachInstruction[] = [
       volleyBonus: 15,
       strokeBonus: 15,
       mentalBonus: 10,
-      duration: 1 
+      duration: 1,
+      situationRequirements: ['match_point_against', 'set_point_against']
     },
-    situationRequirements: ['match_point_against', 'set_point_against'],
     successRate: 0.35,
     successMultiplier: 2.5,
     failurePenalty: -10,

@@ -213,7 +213,7 @@ export function simulatePoint(matchState: MatchState): PointResult {
   );
   
   // 監督指示効果を計算
-  let instructionBonus = { 
+  const instructionBonus = { 
     serveBonus: 0, receiveBonus: 0, volleyBonus: 0, strokeBonus: 0, 
     mentalBonus: 0, staminaBonus: 0, criticalRate: 0, errorReduction: 0, successRateBonus: 0 
   };

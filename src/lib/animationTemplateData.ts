@@ -6,7 +6,7 @@ export interface AnimationTemplateData {
   timeline: Array<{
     t: number;
     action: string;
-    params: Record<string, any>;
+    params: Record<string, string | number | boolean | (string | number | boolean)[]>;
   }>;
 }
 
@@ -632,7 +632,7 @@ export function customizeTemplate(
     const multiplier = customParams.speed_multiplier;
     customizedTemplate.timeline.forEach(action => {
       action.t = Math.round(action.t / multiplier);
-      if (action.params.dur) {
+      if (action.params.dur && typeof action.params.dur === 'number') {
         action.params.dur = Math.round(action.params.dur / multiplier);
       }
     });

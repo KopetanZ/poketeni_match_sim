@@ -109,7 +109,7 @@ function isTiebreakScore(gameScore: string): boolean {
 }
 
 // 試合状況を取得
-function getMatchSituation(matchState: MatchState): JSX.Element {
+function getMatchSituation(matchState: MatchState): React.ReactElement {
   if (matchState.isMatchComplete) {
     const winner = matchState.winner === 'home' ? matchState.homePlayer : matchState.awayPlayer;
     return (

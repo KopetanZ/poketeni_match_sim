@@ -1,13 +1,18 @@
 // アニメーションエンジン - タイムライン実行とアクション制御
 
-import { PointAnimationData, AnimationController } from '@/types/animation';
+import { AnimationController } from '@/types/animation';
 import { PointResult } from '@/types/tennis';
+
+// アニメーションパラメータ型定義
+export interface AnimationParams {
+  [key: string]: string | number | boolean | (string | number | boolean)[];
+}
 
 // タイムラインアクション型定義
 export interface TimelineAction {
   t: number;
   action: string;
-  params: Record<string, any>;
+  params: AnimationParams;
 }
 
 export interface AnimationTemplate {
@@ -141,11 +146,11 @@ export class AnimationEngine {
   }
 
   // アクション実装群
-  private playTrail(params: any): void {
+  private playTrail(params: AnimationParams): void {
     const element = document.querySelector('.ball-trail');
     if (element) {
-      const length = params.length || 50;
-      const opacity = params.opacity || 0.8;
+      const length = Number(params.length) || 50;
+      const opacity = Number(params.opacity) || 0.8;
       const glow = params.glow || false;
       
       (element as HTMLElement).style.setProperty('--trail-length', `${length}px`);
@@ -162,14 +167,14 @@ export class AnimationEngine {
     }
   }
 
-  private spawnParticles(params: any): void {
+  private spawnParticles(params: AnimationParams): void {
     const container = document.querySelector('.animation-container');
     if (!container) return;
 
     const type = params.type || 'sparks';
-    const count = params.count || 10;
-    const size = params.size || 12; // サイズを大きく
-    const life = params.life || 1800; // 持続時間を3倍に延長（600→1800ms）
+    const count = Number(params.count) || 10;
+    const size = Number(params.size) || 12; // サイズを大きく
+    const life = Number(params.life) || 1800; // 持続時間を3倍に延長（600→1800ms）
 
     // 中央から放射状に展開
     const centerX = container.clientWidth / 2;
@@ -258,10 +263,10 @@ export class AnimationEngine {
     }
   }
 
-  private playSound(params: any): void {
+  private playSound(params: AnimationParams): void {
     // サウンド再生のスタブ実装
-    const soundId = params.id || params.ids?.[0];
-    const volume = params.vol || params.vols?.[0] || 0.5;
+    const soundId = params.id || params.ids;
+    const volume = Number(params.vol || params.vols || 0.5);
     
     console.log(`🔊 Playing sound: ${soundId} at volume ${volume}`);
     
@@ -269,12 +274,12 @@ export class AnimationEngine {
     // 現在はログのみ
   }
 
-  private cameraShake(params: any): void {
+  private cameraShake(params: AnimationParams): void {
     const element = document.querySelector('.animation-container');
     if (!element) return;
 
-    const duration = params.dur || 300; // 持続時間を3倍に延長（100→300ms）
-    const intensity = params.intensity || 0.5;
+    const duration = Number(params.dur) || 300; // 持続時間を3倍に延長（100→300ms）
+    const intensity = Number(params.intensity) || 0.5;
     
     const maxOffset = intensity * 10; // px
     
@@ -286,12 +291,12 @@ export class AnimationEngine {
     }, duration);
   }
 
-  private cameraZoom(params: any): void {
+  private cameraZoom(params: AnimationParams): void {
     const element = document.querySelector('.animation-container');
     if (!element) return;
 
-    const target = params.target || 1.1;
-    const duration = params.dur || 600; // 持続時間を3倍に延長（200→600ms）
+    const target = Number(params.target) || 1.1;
+    const duration = Number(params.dur) || 600; // 持続時間を3倍に延長（200→600ms）
     const ease = params.ease || 'ease-out';
     
     (element as HTMLElement).style.transition = `transform ${duration}ms ${ease}`;
@@ -302,10 +307,10 @@ export class AnimationEngine {
     }, duration);
   }
 
-  private uiCutin(params: any): void {
-    const text = params.text || 'ACTION!';
+  private uiCutin(params: AnimationParams): void {
+    const text = String(params.text || 'ACTION!');
     const style = params.style || 'medium';
-    const duration = params.dur || 2000; // 持続時間をさらに延長（2秒）
+    const duration = Number(params.dur) || 2000; // 持続時間をさらに延長（2秒）
     
     const cutin = document.createElement('div');
     cutin.className = `ui-cutin ui-cutin-${style}`;
@@ -391,9 +396,9 @@ export class AnimationEngine {
     }, duration);
   }
 
-  private uiFlash(params: any): void {
+  private uiFlash(params: AnimationParams): void {
     const color = params.color || 'white';
-    const duration = params.dur || 600; // 持続時間を3倍に延長（200→600ms）
+    const duration = Number(params.dur) || 600; // 持続時間を3倍に延長（200→600ms）
     
     // 全画面フラッシュエフェクト
     const flashOverlay = document.createElement('div');
@@ -424,12 +429,12 @@ export class AnimationEngine {
     }, duration);
   }
 
-  private uiScoreBump(params: any): void {
+  private uiScoreBump(params: AnimationParams): void {
     const element = document.querySelector('.score-display');
     if (!element) return;
 
-    const scale = params.scale_to || params.scale || 1.06;
-    const duration = params.dur || 420; // 持続時間を3倍に延長（140→420ms）
+    const scale = Number(params.scale_to || params.scale) || 1.06;
+    const duration = Number(params.dur) || 420; // 持続時間を3倍に延長（140→420ms）
     
     (element as HTMLElement).style.transition = `transform ${duration}ms ease-out`;
     (element as HTMLElement).style.transform = `scale(${scale})`;
@@ -439,15 +444,15 @@ export class AnimationEngine {
     }, duration / 2);
   }
 
-  private playerHighlight(params: any): void {
+  private playerHighlight(params: AnimationParams): void {
     const player = params.player;
     const selector = player === 'winner' ? '.player-winner' : `.player-${player}`;
     const element = document.querySelector(selector);
     
     if (!element) return;
 
-    const scale = params.scale || 1.05;
-    const duration = params.dur || 300; // 持続時間を3倍に延長（100→300ms）
+    const scale = Number(params.scale) || 1.05;
+    const duration = Number(params.dur) || 300; // 持続時間を3倍に延長（100→300ms）
     
     element.classList.add('player-highlighted');
     (element as HTMLElement).style.transform = `scale(${scale})`;
@@ -458,15 +463,15 @@ export class AnimationEngine {
     }, duration);
   }
 
-  private playerGlow(params: any): void {
+  private playerGlow(params: AnimationParams): void {
     const player = params.player;
     const selector = player === 'winner' ? '.player-winner' : `.player-${player}`;
     const element = document.querySelector(selector);
     
     if (!element) return;
 
-    const color = params.color || 'gold';
-    const duration = params.dur || 600; // 持続時間を3倍に延長（200→600ms）
+    const color = String(params.color || 'gold');
+    const duration = Number(params.dur) || 600; // 持続時間を3倍に延長（200→600ms）
     
     element.classList.add('player-glow');
     (element as HTMLElement).style.setProperty('--glow-color', color);
@@ -476,12 +481,12 @@ export class AnimationEngine {
     }, duration);
   }
 
-  private playerReaction(params: any): void {
+  private playerReaction(params: AnimationParams): void {
     // プレイヤーリアクション表示の実装
     console.log('Player reaction:', params.type);
   }
 
-  private screenPulse(params: any): void {
+  private screenPulse(params: AnimationParams): void {
     const overlay = document.createElement('div');
     overlay.style.cssText = `
       position: fixed;
@@ -498,10 +503,10 @@ export class AnimationEngine {
       if (overlay.parentNode) {
         overlay.parentNode.removeChild(overlay);
       }
-    }, params.dur || 150); // 持続時間を3倍に延長（50→150ms）
+    }, Number(params.dur) || 150); // 持続時間を3倍に延長（50→150ms）
   }
 
-  private setTimeScale(params: any): void {
+  private setTimeScale(params: AnimationParams): void {
     // タイムスケール変更（スローモーション効果）
     const scale = params.scale || 1.0;
     const duration = params.dur || 100;
@@ -510,26 +515,28 @@ export class AnimationEngine {
     // 実装は複雑なので、現在はログのみ
   }
 
-  private overlayVignette(params: any): void {
+  private overlayVignette(params: AnimationParams): void {
     // ビネット効果
     console.log('Vignette overlay:', params);
   }
 
-  private vibrate(params: any): void {
+  private vibrate(params: AnimationParams): void {
     if ('vibrate' in navigator) {
-      const duration = params.dur || params.total_dur || 50;
-      const pattern = params.pattern || [duration];
+      const duration = Number(params.dur || params.total_dur) || 50;
+      const pattern = Array.isArray(params.pattern) 
+        ? (params.pattern as (string | number | boolean)[]).map(Number)
+        : [duration];
       navigator.vibrate(pattern);
     }
   }
 
-  private crowdPop(params: any): void {
+  private crowdPop(params: AnimationParams): void {
     console.log('🎉 Crowd reaction:', params.vol || 0.5);
   }
 
-  private loopedTrailSequence(params: any): void {
-    const hits = params.hits || 5;
-    const interval = params.interval || 100;
+  private loopedTrailSequence(params: AnimationParams): void {
+    const hits = Number(params.hits) || 5;
+    const interval = Number(params.interval) || 100;
     
     for (let i = 0; i < hits; i++) {
       setTimeout(() => {
@@ -538,7 +545,7 @@ export class AnimationEngine {
     }
   }
 
-  private cleanupFade(params: any): void {
+  private cleanupFade(params: AnimationParams): void {
     const duration = params.dur || 600; // 持続時間を3倍に延長（200→600ms）
     console.log(`🧹 Cleanup fade: ${duration}ms`);
   }

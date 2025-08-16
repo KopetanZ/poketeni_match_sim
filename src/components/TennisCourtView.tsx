@@ -40,7 +40,7 @@ export default function TennisCourtView({
   setRallyPlaying
 }: TennisCourtViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
   
   const [currentShotIndex, setCurrentShotIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
