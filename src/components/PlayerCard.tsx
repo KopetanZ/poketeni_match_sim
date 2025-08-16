@@ -26,6 +26,7 @@ export default function PlayerCard({ player, side, isActive = false }: PlayerCar
             src={player.pokemon_sprite}
             alt={player.pokemon_name}
             fill
+            sizes="64px"
             className="object-contain"
           />
         </div>

@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { generatePresetPlayers } from '@/lib/playerGenerator';
 import PlayerCard from '@/components/PlayerCard';
@@ -10,6 +10,8 @@ import ScoreBoard from '@/components/ScoreBoard';
 import MatchControls from '@/components/MatchControls';
 import MatchHistory from '@/components/MatchHistory';
 import InterventionModal from '@/components/InterventionModal';
+import AnimationDisplay from '@/components/AnimationDisplay';
+import TennisCourtView from '@/components/TennisCourtView';
 
 export default function Home() {
   const {
@@ -21,10 +23,20 @@ export default function Home() {
     availableInstructions,
     isWaitingForIntervention,
     isMatchActive,
+    lastPointResult,
+    rallyViewEnabled,
+    currentRallySequence,
+    isRallyPlaying,
     setPlayers,
     startMatch,
-    handleIntervention
+    handleIntervention,
+    clearLastPointResult,
+    setRallyViewEnabled,
+    clearRallySequence,
+    setRallyPlaying
   } = useAppStore();
+
+  const [animationEnabled, setAnimationEnabled] = useState(true);
 
   // 初期プレイヤー生成
   useEffect(() => {
@@ -81,6 +93,21 @@ export default function Home() {
           <MatchControls />
         </div>
 
+        {/* ラリー表示切り替え */}
+        {isMatchActive && (
+          <div className="mb-6 text-center">
+            <label className="inline-flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={rallyViewEnabled}
+                onChange={(e) => setRallyViewEnabled(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-white font-medium">ラリー可視化</span>
+            </label>
+          </div>
+        )}
+
         {/* 試合開始ボタン */}
         {!isMatchActive && (
           <div className="text-center mb-6">
@@ -106,6 +133,23 @@ export default function Home() {
         {currentMatch && (
           <div className="mb-6">
             <ScoreBoard matchState={currentMatch} />
+          </div>
+        )}
+
+        {/* ラリー可視化 */}
+        {rallyViewEnabled && currentRallySequence && homePlayer && awayPlayer && (
+          <div className="mb-6">
+            <TennisCourtView
+              rallySequence={currentRallySequence}
+              homePlayer={homePlayer}
+              awayPlayer={awayPlayer}
+              onRallyComplete={() => {
+                setRallyPlaying(false);
+                clearRallySequence();
+              }}
+              isPlaying={true}
+              setRallyPlaying={setRallyPlaying}
+            />
           </div>
         )}
 
@@ -160,6 +204,13 @@ export default function Home() {
           <p>実況パワフルプロ野球のテニス版 - 栄冠ナイン風監督システム</p>
         </footer>
       </div>
+
+      {/* アニメーション表示 */}
+      <AnimationDisplay
+        pointResult={lastPointResult}
+        onAnimationComplete={clearLastPointResult}
+        isEnabled={animationEnabled}
+      />
     </div>
   );
 }

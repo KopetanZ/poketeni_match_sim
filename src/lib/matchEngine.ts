@@ -11,8 +11,48 @@ import {
   CoachInstruction,
   MatchResult
 } from '@/types/tennis';
+import { 
+  PointAnimationData, 
+  AnimationType,
+  PlayerAnimationData,
+  BallAnimationData,
+  ResultAnimationData 
+} from '@/types/animation';
 import { calculateAbilityEffects } from './specialAbilities';
 import { calculateInstructionEffects, executeInstruction } from './coachInstructions';
+import { selectAnimationType, ANIMATION_TEMPLATES } from './animationTemplates';
+import { selectAnimationTemplate } from './animationEngine';
+
+// 現在の状況を文字列で取得
+function getCurrentSituation(matchState: MatchState): string {
+  const [homeScore, awayScore] = matchState.currentGame.split('-');
+  const homePoints = parseInt(homeScore);
+  const awayPoints = parseInt(awayScore);
+  
+  let situation = '';
+  
+  // ブレークポイント判定
+  if ((homePoints >= 3 && homePoints - awayPoints >= 1) || 
+      (awayPoints >= 3 && awayPoints - homePoints >= 1)) {
+    situation += 'break_point_';
+  }
+  
+  // セットポイント判定
+  if (matchState.currentSet.home >= 5 || matchState.currentSet.away >= 5) {
+    situation += 'set_point_';
+  }
+  
+  // マッチポイント判定
+  const homeSetsWon = matchState.sets.filter(set => set.home > set.away).length;
+  const awaySetsWon = matchState.sets.filter(set => set.away > set.home).length;
+  
+  if (homeSetsWon >= matchState.config.setsToWin - 1 || 
+      awaySetsWon >= matchState.config.setsToWin - 1) {
+    situation += 'match_point_';
+  }
+  
+  return situation || 'normal';
+}
 
 // デフォルト試合設定
 export const DEFAULT_MATCH_CONFIG: MatchConfig = {
@@ -262,7 +302,40 @@ export function simulatePoint(matchState: MatchState): PointResult {
     }
   }
   
-  return {
+  // アニメーション情報の生成
+  const rallyLength = Math.floor(Math.random() * 8) + 1; // 1-8ラリー（簡略版）
+  const isComeback = Math.abs(successRate - 0.5) > 0.3; // 大きな有利度差があれば逆転的
+  
+  // Intensity計算（仕様書の式を参考）
+  let intensity = 0;
+  const currentSituation = getCurrentSituation(matchState);
+  
+  // ScoreImportance
+  if (currentSituation.includes('break_point') || 
+      currentSituation.includes('set_point') || 
+      currentSituation.includes('match_point')) {
+    intensity += 2;
+  }
+  
+  // Coach command
+  if (wasInfluencedByInstruction) {
+    intensity += 1;
+  }
+  
+  // Rally length
+  if (rallyLength > 6) {
+    intensity += 1;
+  }
+  
+  // Closeness (clutch situations)
+  if (Math.abs(successRate - 0.5) < 0.12) {
+    intensity += 1;
+  }
+  
+  intensity = Math.min(intensity, 3);
+  
+  // アニメーションテンプレート選択（重要なポイントのみ）
+  const pointResultForAnimation = {
     winner,
     reason,
     description,
@@ -272,7 +345,32 @@ export function simulatePoint(matchState: MatchState): PointResult {
     homeDefense,
     awayDefense,
     successRate,
-    roll
+    roll,
+    rallyLength
+  };
+  
+  const animationTemplate = selectAnimationTemplate(
+    pointResultForAnimation,
+    intensity,
+    wasInfluencedByInstruction
+  );
+
+  return {
+    winner,
+    reason,
+    description,
+    wasInfluencedByInstruction,
+    wasSpecialAbilityTriggered: isCritical,
+    homeAttack,
+    awayAttack,
+    homeDefense,
+    awayDefense,
+    successRate,
+    roll,
+    rallyLength,
+    isComeback,
+    intensity,
+    animationTemplate
   };
 }
 

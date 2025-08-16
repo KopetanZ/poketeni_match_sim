@@ -1,0 +1,266 @@
+/* テニス試合アニメーション用CSS */
+
+/* === コンテナとベース === */
+.animation-container {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.1s ease-out;
+}
+
+/* カメラシェイク */
+.camera-shake {
+  animation: camera-shake 0.1s infinite;
+}
+
+@keyframes camera-shake {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  25% { transform: translateX(var(--shake-intensity, 5px)) translateY(calc(var(--shake-intensity, 5px) * 0.5)); }
+  50% { transform: translateX(calc(var(--shake-intensity, 5px) * -0.8)) translateY(calc(var(--shake-intensity, 5px) * -0.3)); }
+  75% { transform: translateX(calc(var(--shake-intensity, 5px) * 0.6)) translateY(calc(var(--shake-intensity, 5px) * -0.7)); }
+}
+
+/* === ボールトレイル === */
+.ball-trail {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.trail-active {
+  animation: trail-fade var(--trail-duration, 300ms) ease-out;
+}
+
+.trail-glow {
+  filter: drop-shadow(0 0 8px rgba(255, 255, 0, 0.8));
+}
+
+@keyframes trail-fade {
+  0% {
+    opacity: var(--trail-opacity, 0.8);
+    transform: scaleX(var(--trail-length, 50));
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+}
+
+/* === パーティクル === */
+.particle {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+}
+
+.particle-sparks {
+  background: radial-gradient(circle, #ffff00 0%, #ff8800 50%, transparent 100%);
+  box-shadow: 0 0 4px rgba(255, 255, 0, 0.6);
+}
+
+.particle-dust {
+  background: radial-gradient(circle, rgba(139, 69, 19, 0.8) 0%, rgba(139, 69, 19, 0.3) 50%, transparent 100%);
+}
+
+.particle-debris {
+  background: linear-gradient(45deg, #666, #999, #666);
+  border-radius: 20%;
+}
+
+.particle-shine {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+  animation: shine-twinkle 0.6s ease-out;
+}
+
+@keyframes shine-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1) rotate(180deg); }
+}
+
+/* === プレイヤーエフェクト === */
+.player-highlighted {
+  transition: transform 0.1s ease-out;
+  filter: brightness(1.2);
+}
+
+.player-glow {
+  position: relative;
+}
+
+.player-glow::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: radial-gradient(circle, var(--glow-color, gold) 0%, transparent 70%);
+  opacity: 0.6;
+  z-index: -1;
+  animation: glow-pulse 0.3s ease-out;
+}
+
+@keyframes glow-pulse {
+  0% { opacity: 0; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.1); }
+  100% { opacity: 0.6; transform: scale(1); }
+}
+
+/* === UIカットイン === */
+.ui-cutin {
+  font-family: 'Arial Black', Arial, sans-serif;
+  text-align: center;
+  background: linear-gradient(45deg, rgba(0, 0, 0, 0.8), rgba(50, 50, 50, 0.8));
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(4px);
+}
+
+.ui-cutin-small {
+  font-size: 18px;
+  padding: 4px 8px;
+}
+
+.ui-cutin-medium {
+  font-size: 24px;
+  padding: 8px 16px;
+}
+
+.ui-cutin-large {
+  font-size: 36px;
+  padding: 12px 24px;
+  border-width: 3px;
+}
+
+.ui-cutin-big {
+  font-size: 48px;
+  padding: 16px 32px;
+  border-width: 4px;
+  background: linear-gradient(45deg, rgba(255, 215, 0, 0.9), rgba(255, 140, 0, 0.9));
+  color: #000;
+  text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.5);
+}
+
+/* === スコア表示エフェクト === */
+.score-display {
+  transition: transform 0.1s ease-out;
+}
+
+.score-flash {
+  animation: score-flash 0.2s ease-out;
+}
+
+@keyframes score-flash {
+  0% { background-color: transparent; }
+  50% { background-color: rgba(255, 255, 255, 0.3); }
+  100% { background-color: transparent; }
+}
+
+/* === 画面エフェクト === */
+.screen-pulse-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+  z-index: 999;
+  animation: screen-pulse 0.1s ease-out;
+}
+
+@keyframes screen-pulse {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.vignette-overlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle, transparent 30%, rgba(0, 0, 0, 0.3) 100%);
+  pointer-events: none;
+  z-index: 998;
+}
+
+/* === テニスコート専用スタイル === */
+.tennis-court {
+  background: linear-gradient(to bottom, #4a90e2 0%, #7fb069 40%, #8fbc8f 100%);
+  position: relative;
+}
+
+.tennis-court::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    /* ネット */
+    linear-gradient(90deg, transparent 49%, white 49%, white 51%, transparent 51%),
+    /* コートライン */
+    linear-gradient(0deg, transparent 10%, white 10%, white 12%, transparent 12%),
+    linear-gradient(0deg, transparent 88%, white 88%, white 90%, transparent 90%),
+    linear-gradient(90deg, transparent 15%, white 15%, white 17%, transparent 17%),
+    linear-gradient(90deg, transparent 83%, white 83%, white 85%, transparent 85%);
+  opacity: 0.8;
+}
+
+.ball-shadow {
+  position: absolute;
+  width: 8px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  filter: blur(1px);
+}
+
+/* === アニメーション制御 === */
+.animation-speed-1x { animation-duration: 1s; }
+.animation-speed-2x { animation-duration: 0.5s; }
+.animation-speed-3x { animation-duration: 0.33s; }
+
+/* 低品質モード */
+.low-quality .particle { display: none; }
+.low-quality .camera-shake { animation: none; }
+.low-quality .trail-glow { filter: none; }
+
+/* === レスポンシブ対応 === */
+@media (max-width: 768px) {
+  .ui-cutin-big { font-size: 36px; padding: 12px 24px; }
+  .ui-cutin-large { font-size: 28px; padding: 10px 20px; }
+  .ui-cutin-medium { font-size: 20px; padding: 6px 12px; }
+  .ui-cutin-small { font-size: 16px; padding: 4px 8px; }
+  
+  .camera-shake {
+    --shake-intensity: 3px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ui-cutin-big { font-size: 28px; padding: 8px 16px; }
+  .ui-cutin-large { font-size: 24px; padding: 8px 16px; }
+  
+  .particle {
+    transform: scale(0.7);
+  }
+}
+
+/* === アクセシビリティ === */
+@media (prefers-reduced-motion: reduce) {
+  .camera-shake { animation: none; }
+  .particle { animation-duration: 0.1s; }
+  .trail-active { animation-duration: 0.1s; }
+  .player-glow::after { animation: none; opacity: 0.3; }
+}
+
+/* === デバッグ用 === */
+.debug-animation .animation-container {
+  border: 2px dashed #ff0000;
+}
+
+.debug-animation .particle {
+  border: 1px solid #ff00ff;
+}
+
+.debug-animation .ball-trail {
+  border: 1px solid #00ff00;
+}

@@ -10,6 +10,7 @@ import {
   CoachInstruction,
   MatchResult 
 } from '@/types/tennis';
+import { RallySequence, generateRallySequence } from '@/lib/rallyGenerator';
 import { 
   initializeMatch, 
   simulatePoint, 
@@ -40,6 +41,14 @@ interface AppState {
   autoPlaySpeed: number; // ms
   autoPlayMode: 'normal' | 'to_intervention' | 'to_end'; // 自動再生モード
   
+  // アニメーション関連
+  lastPointResult: PointResult | null;
+  
+  // ラリー可視化関連
+  rallyViewEnabled: boolean;
+  currentRallySequence: RallySequence | null;
+  isRallyPlaying: boolean; // ラリーアニメーション再生中フラグ
+  
   // アクション
   setPlayers: (home: TennisPlayer, away: TennisPlayer) => void;
   startMatch: (config?: MatchConfig) => void;
@@ -50,6 +59,10 @@ interface AppState {
   stopAutoPlay: () => void;
   setAutoPlaySpeed: (speed: number) => void;
   resetMatch: () => void;
+  clearLastPointResult: () => void;
+  setRallyViewEnabled: (enabled: boolean) => void;
+  clearRallySequence: () => void;
+  setRallyPlaying: (playing: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -65,6 +78,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   isAutoPlaying: false,
   autoPlaySpeed: 2000,
   autoPlayMode: 'normal',
+  lastPointResult: null,
+  rallyViewEnabled: false,
+  currentRallySequence: null,
+  isRallyPlaying: false,
 
   // プレイヤー設定
   setPlayers: (home: TennisPlayer, away: TennisPlayer) => {
@@ -140,11 +157,35 @@ export const useAppStore = create<AppState>((set, get) => ({
     const pointResult = simulatePoint(matchState);
     applyPointResult(matchState, pointResult);
     
+    // アニメーション情報をログ出力
+    console.log('🎬 Point Animation Info:', {
+      template: pointResult.animationTemplate,
+      intensity: pointResult.intensity,
+      rallyLength: pointResult.rallyLength,
+      reason: pointResult.reason,
+      wasInfluenced: pointResult.wasInfluencedByInstruction
+    });
+    
     const newHistory = [...state.matchHistory, pointResult];
+    
+    // ラリーシーケンス生成（ラリー表示が有効な場合）
+    let rallySequence: RallySequence | null = null;
+    if (state.rallyViewEnabled && state.homePlayer && state.awayPlayer) {
+      rallySequence = generateRallySequence(
+        pointResult,
+        state.homePlayer,
+        state.awayPlayer,
+        matchState.currentServer,
+        false // TODO: deuce判定を実装
+      );
+    }
     
     set({
       currentMatch: matchState,
-      matchHistory: newHistory
+      matchHistory: newHistory,
+      lastPointResult: pointResult,
+      currentRallySequence: rallySequence,
+      isRallyPlaying: rallySequence !== null // ラリーシーケンスがある場合は再生中に設定
     });
     
     // 試合終了チェック
@@ -239,6 +280,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         return;
       }
       
+      // ラリー再生待ちの場合は待機
+      if (currentState.isRallyPlaying) {
+        setTimeout(playLoop, 200); // ラリー再生中は200ms後に再チェック
+        return;
+      }
+      
       currentState.playNextPoint()
         .then(() => {
           const newState = get();
@@ -274,7 +321,28 @@ export const useAppStore = create<AppState>((set, get) => ({
       availableInstructions: [],
       isWaitingForIntervention: false,
       isMatchActive: false,
-      isAutoPlaying: false
+      isAutoPlaying: false,
+      lastPointResult: null
     });
+  },
+
+  // アニメーション結果クリア
+  clearLastPointResult: () => {
+    set({ lastPointResult: null });
+  },
+
+  // ラリー表示設定
+  setRallyViewEnabled: (enabled: boolean) => {
+    set({ rallyViewEnabled: enabled });
+  },
+
+  // ラリーシーケンスクリア
+  clearRallySequence: () => {
+    set({ currentRallySequence: null, isRallyPlaying: false });
+  },
+
+  // ラリー再生状態設定
+  setRallyPlaying: (playing: boolean) => {
+    set({ isRallyPlaying: playing });
   }
 }));

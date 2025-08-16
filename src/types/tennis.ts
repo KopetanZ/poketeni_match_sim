@@ -202,6 +202,7 @@ export interface PointResult {
   reason: PointWinReason;
   description: string;
   wasInfluencedByInstruction: boolean;
+  wasSpecialAbilityTriggered?: boolean;
   
   // 計算詳細
   homeAttack: number;
@@ -210,6 +211,12 @@ export interface PointResult {
   awayDefense: number;
   successRate: number;
   roll: number;
+  
+  // アニメーション関連
+  rallyLength?: number;
+  isComeback?: boolean;
+  intensity?: number;
+  animationTemplate?: string | null;
 }
 
 export interface MatchResult {
