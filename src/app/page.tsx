@@ -12,6 +12,11 @@ import MatchHistory from '@/components/MatchHistory';
 import InterventionModal from '@/components/InterventionModal';
 import AnimationDisplay from '@/components/AnimationDisplay';
 import TennisCourtView from '@/components/TennisCourtView';
+import { AudioStatus } from '@/components/AudioProvider';
+import { AudioControls } from '@/components/AudioControls';
+import { useGameAudio } from '@/hooks/useGameAudio';
+import { DetailedPointGenerator } from '@/lib/detailedPointGenerator';
+import type { DetailedPointResult } from '@/types/tennis';
 
 export default function Home() {
   const {
@@ -24,6 +29,7 @@ export default function Home() {
     isWaitingForIntervention,
     isMatchActive,
     lastPointResult,
+    lastInterventionResult,
     rallyViewEnabled,
     currentRallySequence,
     isRallyPlaying,
@@ -31,12 +37,19 @@ export default function Home() {
     startMatch,
     handleIntervention,
     clearLastPointResult,
+    clearInterventionResult,
     setRallyViewEnabled,
     clearRallySequence,
     setRallyPlaying
   } = useAppStore();
 
   const [animationEnabled, setAnimationEnabled] = useState(true);
+  
+  // 詳細ポイント結果管理
+  const [currentDetailedResult, setCurrentDetailedResult] = useState<DetailedPointResult | null>(null);
+  
+  // ゲーム音響管理
+  const { playPointAudio, playUISound, playInterventionResultAudio, resetAudio, isReady: isAudioReady } = useGameAudio();
 
   // 初期プレイヤー生成
   useEffect(() => {
@@ -46,15 +59,75 @@ export default function Home() {
     }
   }, [homePlayer, awayPlayer, setPlayers]);
 
+  // ポイント結果発生時の音響再生
+  useEffect(() => {
+    if (lastPointResult && isAudioReady && homePlayer && awayPlayer) {
+      console.log('🎵 Playing point audio for:', lastPointResult);
+      playPointAudio(lastPointResult, homePlayer, awayPlayer);
+    }
+  }, [lastPointResult, isAudioReady, homePlayer, awayPlayer, playPointAudio]);
+
+  // ポイント結果から詳細結果を生成
+  useEffect(() => {
+    if (lastPointResult && homePlayer && awayPlayer) {
+      try {
+        const detailedResult = DetailedPointGenerator.generateDetailedResult(
+          lastPointResult, 
+          homePlayer, 
+          awayPlayer, 
+          currentMatch?.currentServer === 'home' || currentMatch?.currentServer === 'away'
+        );
+        setCurrentDetailedResult(detailedResult);
+        console.log('🎬 Generated detailed result:', detailedResult);
+      } catch (error) {
+        console.error('Failed to generate detailed result:', error);
+        setCurrentDetailedResult(null);
+      }
+    } else {
+      setCurrentDetailedResult(null);
+    }
+  }, [lastPointResult, homePlayer, awayPlayer, currentMatch?.currentServer]);
+
+  // 新しい試合開始時の音響リセット
+  useEffect(() => {
+    if (isMatchActive && isAudioReady) {
+      resetAudio();
+    }
+  }, [isMatchActive, isAudioReady, resetAudio]);
+
+  // 監督介入結果の音響フィードバック
+  useEffect(() => {
+    if (lastInterventionResult && isAudioReady) {
+      console.log('🎵 Playing intervention result audio:', lastInterventionResult);
+      playInterventionResultAudio(
+        lastInterventionResult.success, 
+        lastInterventionResult.instruction, 
+        lastInterventionResult.message
+      );
+      
+      // 音響再生後、結果をクリア（音が重複しないように）
+      setTimeout(() => {
+        clearInterventionResult();
+      }, 1000);
+    }
+  }, [lastInterventionResult, isAudioReady, playInterventionResultAudio, clearInterventionResult]);
+
   const handleStartMatch = () => {
     if (homePlayer && awayPlayer) {
+      playUISound('click');
       startMatch();
     }
   };
 
   const handleNewPlayers = () => {
+    playUISound('click');
     const { home, away } = generatePresetPlayers();
     setPlayers(home, away);
+  };
+
+  const handleInterventionWithAudio = (instructionId: string) => {
+    // UI sound is now handled by InterventionModal, detailed audio by useEffect
+    handleIntervention(instructionId);
   };
 
   return (
@@ -99,11 +172,11 @@ export default function Home() {
             <label className="inline-flex items-center space-x-2">
               <input
                 type="checkbox"
-                checked={rallyViewEnabled}
-                onChange={(e) => setRallyViewEnabled(e.target.checked)}
+                checked={!rallyViewEnabled}
+                onChange={(e) => setRallyViewEnabled(!e.target.checked)}
                 className="rounded"
               />
-              <span className="text-white font-medium">ラリー可視化</span>
+              <span className="text-white font-medium">ラリーアニメーション非表示</span>
             </label>
           </div>
         )}
@@ -149,6 +222,7 @@ export default function Home() {
               }}
               isPlaying={true}
               setRallyPlaying={setRallyPlaying}
+              detailedResult={currentDetailedResult}
             />
           </div>
         )}
@@ -166,7 +240,7 @@ export default function Home() {
             opportunity={currentIntervention}
             instructions={availableInstructions}
             remainingUses={currentMatch?.coachBudgetRemaining || 0}
-            onSelect={handleIntervention}
+            onSelect={handleInterventionWithAudio}
             timeLimit={15}
           />
         )}
@@ -211,6 +285,10 @@ export default function Home() {
         onAnimationComplete={clearLastPointResult}
         isEnabled={animationEnabled}
       />
+
+      {/* 音響システム */}
+      <AudioStatus />
+      <AudioControls />
     </div>
   );
 }

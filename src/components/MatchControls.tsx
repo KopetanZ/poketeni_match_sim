@@ -5,6 +5,7 @@
 import { useAppStore } from '@/lib/store';
 import { Play, Pause, SkipForward, RotateCcw, Settings, FastForward, Zap } from 'lucide-react';
 import { useState } from 'react';
+import { useGameAudio } from '@/hooks/useGameAudio';
 
 export default function MatchControls() {
   const {
@@ -23,12 +24,46 @@ export default function MatchControls() {
   
   const [showSpeedControl, setShowSpeedControl] = useState(false);
   
+  // 音響管理
+  const { playUISound } = useGameAudio();
+  
   const handlePlayNextPoint = async () => {
     try {
+      playUISound('click');
       await playNextPoint();
     } catch (error) {
       console.error('ポイント実行エラー:', error);
     }
+  };
+  
+  const handleStartAutoPlay = (mode: 'normal' | 'to_intervention' | 'to_end') => {
+    playUISound('click');
+    startAutoPlay(mode);
+  };
+  
+  const handleStopAutoPlay = () => {
+    playUISound('click');
+    stopAutoPlay();
+  };
+  
+  const handleResetMatch = () => {
+    playUISound('click');
+    resetMatch();
+  };
+  
+  const handleSkipIntervention = () => {
+    playUISound('click');
+    skipIntervention();
+  };
+  
+  const handleSpeedChange = (speed: number) => {
+    playUISound('select');
+    setAutoPlaySpeed(speed);
+  };
+  
+  const handleToggleSpeedControl = () => {
+    playUISound('click');
+    setShowSpeedControl(!showSpeedControl);
   };
   
   const speedOptions = [
@@ -46,7 +81,7 @@ export default function MatchControls() {
             <>
               {isAutoPlaying ? (
                 <button
-                  onClick={stopAutoPlay}
+                  onClick={handleStopAutoPlay}
                   className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
                 >
                   <Pause size={16} />
@@ -55,7 +90,7 @@ export default function MatchControls() {
               ) : (
                 <>
                   <button
-                    onClick={() => startAutoPlay('normal')}
+                    onClick={() => handleStartAutoPlay('normal')}
                     className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
                   >
                     <Play size={16} />
@@ -63,7 +98,7 @@ export default function MatchControls() {
                   </button>
                   
                   <button
-                    onClick={() => startAutoPlay('to_intervention')}
+                    onClick={() => handleStartAutoPlay('to_intervention')}
                     className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                   >
                     <FastForward size={16} />
@@ -71,7 +106,7 @@ export default function MatchControls() {
                   </button>
                   
                   <button
-                    onClick={() => startAutoPlay('to_end')}
+                    onClick={() => handleStartAutoPlay('to_end')}
                     className="flex items-center gap-2 px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
                   >
                     <Zap size={16} />
@@ -92,7 +127,7 @@ export default function MatchControls() {
           )}
           
           <button
-            onClick={resetMatch}
+            onClick={handleResetMatch}
             className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
           >
             <RotateCcw size={16} />
@@ -104,7 +139,7 @@ export default function MatchControls() {
         {isMatchActive && (
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowSpeedControl(!showSpeedControl)}
+              onClick={handleToggleSpeedControl}
               className="flex items-center gap-2 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
             >
               <Settings size={16} />
@@ -116,7 +151,7 @@ export default function MatchControls() {
                 {speedOptions.map(option => (
                   <button
                     key={option.value}
-                    onClick={() => setAutoPlaySpeed(option.value)}
+                    onClick={() => handleSpeedChange(option.value)}
                     className={`px-3 py-1 rounded text-sm transition-colors ${
                       autoPlaySpeed === option.value
                         ? 'bg-blue-500 text-white'
@@ -141,7 +176,7 @@ export default function MatchControls() {
               </div>
               
               <button
-                onClick={skipIntervention}
+                onClick={handleSkipIntervention}
                 className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
               >
                 介入をスキップ

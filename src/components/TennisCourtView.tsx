@@ -4,7 +4,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { RallySequence, RallyShot } from '@/lib/rallyGenerator';
-import { TennisPlayer } from '@/types/tennis';
+import { TennisPlayer, DetailedPointResult } from '@/types/tennis';
+import { useGameAudio } from '@/hooks/useGameAudio';
 
 interface TennisCourtViewProps {
   rallySequence: RallySequence | null;
@@ -13,6 +14,7 @@ interface TennisCourtViewProps {
   onRallyComplete?: () => void;
   isPlaying: boolean;
   setRallyPlaying?: (playing: boolean) => void;
+  detailedResult?: DetailedPointResult | null; // 詳細ポイント結果
 }
 
 interface PlayerPosition {
@@ -31,16 +33,31 @@ interface BallPosition {
   trail: { x: number; y: number }[]; // ボールの軌跡
 }
 
+interface SpecialAnimation {
+  type: 'net_hit' | 'out_bounce' | 'missed_ball' | 'ace_effect' | 'normal' | null;
+  isActive: boolean;
+  progress: number; // 0-1
+  netHitPosition?: { x: number; y: number };
+  outBouncePosition?: { x: number; y: number };
+  ballPassPosition?: { x: number; y: number };
+  acePosition?: { x: number; y: number };
+  intensity?: number;
+}
+
 export default function TennisCourtView({
   rallySequence,
   homePlayer,
   awayPlayer,
   onRallyComplete,
   isPlaying,
-  setRallyPlaying
+  setRallyPlaying,
+  detailedResult
 }: TennisCourtViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
+  
+  // ゲーム音響管理
+  const { playRallyHit, playBallBounce, playAceAudio } = useGameAudio();
   
   const [currentShotIndex, setCurrentShotIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -58,6 +75,13 @@ export default function TennisCourtView({
     x: 0.5, y: 0.5, z: 0, isVisible: false, trail: []
   });
   const [isTransitioning, setIsTransitioning] = useState(false); // ショット間のトランジション状態
+  
+  // 特殊アニメーション管理
+  const [specialAnimation, setSpecialAnimation] = useState<SpecialAnimation>({
+    type: null,
+    isActive: false,
+    progress: 0
+  });
   
   // キャンバスサイズ
   const CANVAS_WIDTH = 600;
@@ -108,6 +132,17 @@ export default function TennisCourtView({
     // ネット
     const netLeft = convertTo3D(0.1, 0.5);
     const netRight = convertTo3D(0.9, 0.5);
+    
+    // ネットヒット効果
+    if (specialAnimation.type === 'net_hit' && specialAnimation.isActive) {
+      const hitIntensity = Math.sin(specialAnimation.progress * Math.PI * 8) * 0.3;
+      ctx.strokeStyle = `rgba(255, 100, 100, ${1 - specialAnimation.progress * 0.5})`;
+      ctx.lineWidth = 3 + hitIntensity;
+    } else {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+    }
+    
     ctx.beginPath();
     ctx.moveTo(netLeft.x, netLeft.y);
     ctx.lineTo(netRight.x, netRight.y);
@@ -115,12 +150,92 @@ export default function TennisCourtView({
     
     // ネットの縦線（質感表現）
     ctx.lineWidth = 1;
+    ctx.strokeStyle = '#ffffff';
     for (let i = 0; i <= 10; i++) {
       const x = netLeft.x + (netRight.x - netLeft.x) * (i / 10);
+      const vibration = specialAnimation.type === 'net_hit' && specialAnimation.isActive ? 
+        Math.sin(specialAnimation.progress * Math.PI * 12 + i) * 2 : 0;
       ctx.beginPath();
-      ctx.moveTo(x, netLeft.y - 8);
-      ctx.lineTo(x, netLeft.y + 8);
+      ctx.moveTo(x, netLeft.y - 8 + vibration);
+      ctx.lineTo(x, netLeft.y + 8 + vibration);
       ctx.stroke();
+    }
+    
+    // ネットヒット時のエフェクト
+    if (specialAnimation.type === 'net_hit' && specialAnimation.isActive && specialAnimation.netHitPosition) {
+      const hitPos = convertTo3D(specialAnimation.netHitPosition.x, specialAnimation.netHitPosition.y);
+      const sparkRadius = specialAnimation.progress * 15;
+      
+      ctx.strokeStyle = `rgba(255, 255, 0, ${1 - specialAnimation.progress})`;
+      ctx.lineWidth = 2;
+      
+      // 火花エフェクト
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const sparkX = hitPos.x + Math.cos(angle) * sparkRadius;
+        const sparkY = hitPos.y + Math.sin(angle) * sparkRadius;
+        
+        ctx.beginPath();
+        ctx.moveTo(hitPos.x, hitPos.y);
+        ctx.lineTo(sparkX, sparkY);
+        ctx.stroke();
+      }
+    }
+    
+    // エースエフェクト
+    if (specialAnimation.type === 'ace_effect' && specialAnimation.isActive && specialAnimation.acePosition) {
+      const acePos = convertTo3D(specialAnimation.acePosition.x, specialAnimation.acePosition.y);
+      const intensity = specialAnimation.intensity || 1.0;
+      const progress = specialAnimation.progress;
+      
+      // 閃光エフェクト
+      const flashRadius = progress * 60 * intensity;
+      const flashAlpha = Math.sin(progress * Math.PI * 6) * 0.6 + 0.4; // 点滅
+      
+      // 放射状の光線
+      ctx.strokeStyle = `rgba(255, 255, 100, ${flashAlpha * (1 - progress * 0.5)})`;
+      ctx.lineWidth = 3;
+      
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        const rayLength = flashRadius * (0.5 + Math.random() * 0.5);
+        const startX = acePos.x;
+        const startY = acePos.y;
+        const endX = startX + Math.cos(angle) * rayLength;
+        const endY = startY + Math.sin(angle) * rayLength;
+        
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      }
+      
+      // 中央の強い光
+      const centerGradient = ctx.createRadialGradient(acePos.x, acePos.y, 0, acePos.x, acePos.y, flashRadius * 0.3);
+      centerGradient.addColorStop(0, `rgba(255, 255, 255, ${flashAlpha})`);
+      centerGradient.addColorStop(0.5, `rgba(255, 255, 100, ${flashAlpha * 0.6})`);
+      centerGradient.addColorStop(1, 'rgba(255, 255, 100, 0)');
+      
+      ctx.fillStyle = centerGradient;
+      ctx.beginPath();
+      ctx.arc(acePos.x, acePos.y, flashRadius * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // エース文字エフェクト（後半で表示）
+      if (progress > 0.4) {
+        const textAlpha = Math.min((progress - 0.4) / 0.6, 1);
+        const textScale = 1 + Math.sin((progress - 0.4) * Math.PI * 3) * 0.2;
+        
+        ctx.fillStyle = `rgba(255, 255, 255, ${textAlpha})`;
+        ctx.strokeStyle = `rgba(255, 100, 100, ${textAlpha})`;
+        ctx.font = `bold ${Math.floor(36 * textScale)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 2;
+        
+        const aceText = 'ACE!';
+        ctx.strokeText(aceText, acePos.x, acePos.y - 40);
+        ctx.fillText(aceText, acePos.x, acePos.y - 40);
+      }
     }
     
     // サービスライン
@@ -208,15 +323,83 @@ export default function TennisCourtView({
     
     // ボール本体（高さを考慮）
     const ballY = pos3d.y - ball.z * 50; // 高さに応じてY座標調整
-    ctx.fillStyle = '#ffeb3b';
+    
+    // 特殊アニメーション中のボール色変更
+    if (specialAnimation.type === 'out_bounce' && specialAnimation.isActive) {
+      ctx.fillStyle = `rgba(255, 100, 100, ${1 - specialAnimation.progress * 0.3})`;
+    } else if (specialAnimation.type === 'missed_ball' && specialAnimation.isActive) {
+      ctx.fillStyle = `rgba(255, 255, 100, ${1 - specialAnimation.progress * 0.5})`;
+    } else {
+      ctx.fillStyle = '#ffeb3b';
+    }
+    
     ctx.strokeStyle = '#333333';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(pos3d.x, ballY, 10 * scale, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    
+    // アウト時のバウンドエフェクト
+    if (specialAnimation.type === 'out_bounce' && specialAnimation.isActive && specialAnimation.outBouncePosition) {
+      const bouncePos = convertTo3D(specialAnimation.outBouncePosition.x, specialAnimation.outBouncePosition.y);
+      const dustRadius = specialAnimation.progress * 20;
+      
+      ctx.fillStyle = `rgba(139, 69, 19, ${0.7 - specialAnimation.progress * 0.7})`;
+      
+      // ダストクラウド
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        const dustX = bouncePos.x + Math.cos(angle) * dustRadius * (0.5 + Math.random() * 0.5);
+        const dustY = bouncePos.y + Math.sin(angle) * dustRadius * (0.5 + Math.random() * 0.5);
+        const dustSize = (1 - specialAnimation.progress) * 3;
+        
+        ctx.beginPath();
+        ctx.arc(dustX, dustY, dustSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   };
   
+  // 特殊アニメーション実行
+  const executeSpecialAnimation = (type: 'net_hit' | 'out_bounce' | 'missed_ball' | 'ace_effect', params: any) => {
+    setSpecialAnimation({
+      type,
+      isActive: true,
+      progress: 0,
+      ...params
+    });
+    
+    // アニメーション実行
+    const duration = type === 'ace_effect' ? 2000 : 1500; // エースは長め
+    const startTime = Date.now();
+    
+    const animateSpecial = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      setSpecialAnimation(prev => ({
+        ...prev,
+        progress
+      }));
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateSpecial);
+      } else {
+        // アニメーション完了
+        setTimeout(() => {
+          setSpecialAnimation({
+            type: null,
+            isActive: false,
+            progress: 0
+          });
+        }, type === 'ace_effect' ? 1000 : 500); // エースは余韻長め
+      }
+    };
+    
+    animateSpecial();
+  };
+
   // アニメーションループ
   const animate = () => {
     const canvas = canvasRef.current;
@@ -242,6 +425,65 @@ export default function TennisCourtView({
   useEffect(() => {
     pausedRef.current = isPaused;
   }, [isPaused]);
+
+  // 詳細ポイント結果による特殊アニメーション
+  useEffect(() => {
+    if (!detailedResult || !detailedResult.detailedReason) return;
+    
+    const reason = detailedResult.detailedReason;
+    
+    // エース系 - 特別なボールアニメーション
+    if (reason === 'ace_serve' || reason === 'service_winner') {
+      // エース音響を即座に再生
+      const aceType = reason === 'ace_serve' ? 'serve' : 'return';
+      playAceAudio(aceType, detailedResult.intensity || 1.0);
+      
+      // エース用の特殊ボールアニメーション
+      animateSpecialBall(
+        detailedResult.ballTrajectory.startPosition,
+        detailedResult.ballTrajectory.endPosition,
+        'ace',
+        () => {
+          // エース完了後の処理
+          console.log('🎾 Ace animation completed');
+        }
+      );
+      
+      // エース用のスペシャルエフェクト
+      executeSpecialAnimation('ace_effect', {
+        acePosition: detailedResult.ballTrajectory.endPosition,
+        intensity: detailedResult.intensity || 1.0
+      });
+    }
+    // ネット系アニメーション
+    else if (reason === 'hit_net' || reason === 'net_cord') {
+      executeSpecialAnimation('net_hit', {
+        netHitPosition: detailedResult.ballTrajectory.hitNetAt || { x: 0.5, y: 0.5 }
+      });
+    }
+    // アウト系アニメーション  
+    else if (reason === 'out_baseline' || reason === 'out_sideline' || reason === 'out_long' || reason === 'out_wide') {
+      executeSpecialAnimation('out_bounce', {
+        outBouncePosition: detailedResult.ballTrajectory.endPosition
+      });
+    }
+    // みのがし系アニメーション - 特別なボールアニメーション
+    else if (reason === 'missed_return' || reason === 'late_swing' || reason === 'misjudged') {
+      // 見逃し用の特殊ボールアニメーション（コート外まで）
+      animateSpecialBall(
+        detailedResult.ballTrajectory.startPosition,
+        detailedResult.ballTrajectory.endPosition,
+        'missed_ball',
+        () => {
+          console.log('🎾 Missed ball animation completed');
+        }
+      );
+      
+      executeSpecialAnimation('missed_ball', {
+        ballPassPosition: detailedResult.ballTrajectory.endPosition
+      });
+    }
+  }, [detailedResult]);
 
   // isAutoPlayingが変更されたときにrefを更新
   useEffect(() => {
@@ -301,6 +543,10 @@ export default function TennisCourtView({
         // プレイヤー移動完了を待ってからボールアニメーション開始
         setTimeout(() => {
           setIsTransitioning(false);
+          
+          // ラケット打撃音を再生（ショット開始時）
+          const shotIntensity = shot.power === 'power' ? 0.9 : shot.power === 'medium' ? 0.6 : 0.3;
+          playRallyHit(shotIntensity, shot.shotType);
           
           // ボール移動（アニメーション）
           animateBallToTarget(shot.position, shot.targetPosition, () => {
@@ -430,12 +676,158 @@ export default function TennisCourtView({
           trail: [...prev.trail, { x: target.x, y: target.y }]
         }));
         
+        // ボールバウンド音を再生
+        const bounceIntensity = Math.min(1.0, distance * 2); // 距離に応じた音の強さ
+        playBallBounce(bounceIntensity);
+        
         // 少し待ってから次の処理へ
         setTimeout(onComplete, 100);
       }
     };
     
     animateBall();
+  };
+
+  // 特殊ボールアニメーション（見逃し・エース用）
+  const animateSpecialBall = (
+    start: {x: number, y: number}, 
+    target: {x: number, y: number}, 
+    type: 'missed_ball' | 'ace' | 'normal',
+    onComplete: () => void
+  ) => {
+    const baseDuration = type === 'ace' ? 600 : 1200; // エースは速く、見逃しは長く
+    const startTime = Date.now();
+    
+    // 見逃しの場合は最終的にコート外まで飛ばす
+    let finalTarget = target;
+    if (type === 'missed_ball') {
+      // ターゲットを更にコート外に設定
+      const extraDistance = 0.3; // 追加の距離
+      const direction = { 
+        x: target.x - start.x, 
+        y: target.y - start.y 
+      };
+      const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
+      if (length > 0) {
+        direction.x /= length;
+        direction.y /= length;
+        finalTarget = {
+          x: target.x + direction.x * extraDistance,
+          y: target.y + direction.y * extraDistance
+        };
+      }
+    }
+    
+    const actualStart = ballPosition.isVisible ? 
+      { x: ballPosition.x, y: ballPosition.y } : start;
+    
+    setBallPosition(prev => ({ 
+      ...prev, 
+      isVisible: true, 
+      trail: []
+    }));
+    
+    const animateBall = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / baseDuration, 1);
+      
+      // エースは直線的、見逃しは放物線的
+      const easeProgress = type === 'ace' ? 
+        progress : // 直線的（速い）
+        1 - Math.pow(1 - progress, 2); // ease-out quadratic
+      
+      const x = actualStart.x + (finalTarget.x - actualStart.x) * easeProgress;
+      const y = actualStart.y + (finalTarget.y - actualStart.y) * easeProgress;
+      
+      // 弧の高さ
+      const distance = Math.sqrt(
+        Math.pow(finalTarget.x - actualStart.x, 2) + Math.pow(finalTarget.y - actualStart.y, 2)
+      );
+      
+      let z = 0;
+      if (type === 'ace') {
+        z = Math.sin(progress * Math.PI) * Math.min(distance * 0.3, 0.2); // 低い弧
+      } else if (type === 'missed_ball') {
+        z = Math.sin(progress * Math.PI) * Math.min(distance * 0.6, 0.3); // 通常の弧
+      } else {
+        z = Math.sin(progress * Math.PI) * Math.min(distance * 0.8, 0.4);
+      }
+      
+      setBallPosition(prev => ({
+        x, y, z,
+        isVisible: true,
+        trail: [...prev.trail.slice(-15), { x, y }]
+      }));
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateBall);
+      } else {
+        // 見逃しの場合は更にバウンドして外に
+        if (type === 'missed_ball') {
+          animateFinalBounce(finalTarget, onComplete);
+        } else {
+          setBallPosition(prev => ({
+            x: finalTarget.x, y: finalTarget.y, z: 0,
+            isVisible: true,
+            trail: [...prev.trail, { x: finalTarget.x, y: finalTarget.y }]
+          }));
+          
+          if (type !== 'ace') {
+            const bounceIntensity = Math.min(1.0, distance * 2);
+            playBallBounce(bounceIntensity);
+          }
+          
+          setTimeout(onComplete, type === 'ace' ? 800 : 300); // エースは余韻を長く
+        }
+      }
+    };
+    
+    animateBall();
+  };
+
+  // 見逃し時の最終バウンド（コート外へ）
+  const animateFinalBounce = (bounceStart: {x: number, y: number}, onComplete: () => void) => {
+    const duration = 800;
+    const startTime = Date.now();
+    
+    // さらに外側の最終地点
+    const finalExit = {
+      x: bounceStart.x + (bounceStart.x - 0.5) * 0.5, // 中央から更に遠く
+      y: bounceStart.y + (bounceStart.y > 0.5 ? 0.3 : -0.3) // 上下にさらに移動
+    };
+    
+    // バウンド音を再生
+    playBallBounce(0.8);
+    
+    const animateBounce = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      const easeProgress = 1 - Math.pow(1 - progress, 2);
+      const x = bounceStart.x + (finalExit.x - bounceStart.x) * easeProgress;
+      const y = bounceStart.y + (finalExit.y - bounceStart.y) * easeProgress;
+      
+      // バウンド後は低い弧
+      const z = Math.sin(progress * Math.PI) * 0.15;
+      
+      setBallPosition(prev => ({
+        x, y, z,
+        isVisible: progress < 0.9, // 最後は消える
+        trail: [...prev.trail.slice(-10), { x, y }]
+      }));
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateBounce);
+      } else {
+        setBallPosition(prev => ({
+          ...prev,
+          isVisible: false
+        }));
+        setTimeout(onComplete, 200);
+      }
+    };
+    
+    animateBounce();
   };
   
   // プレイヤー位置の平滑移動

@@ -34,6 +34,7 @@ interface AppState {
   currentIntervention: InterventionOpportunity | null;
   availableInstructions: CoachInstruction[];
   isWaitingForIntervention: boolean;
+  lastInterventionResult: { success: boolean; instruction: CoachInstruction | null; message: string } | null;
   
   // UI状態
   isMatchActive: boolean;
@@ -63,6 +64,7 @@ interface AppState {
   setRallyViewEnabled: (enabled: boolean) => void;
   clearRallySequence: () => void;
   setRallyPlaying: (playing: boolean) => void;
+  clearInterventionResult: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -74,12 +76,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentIntervention: null,
   availableInstructions: [],
   isWaitingForIntervention: false,
+  lastInterventionResult: null,
   isMatchActive: false,
   isAutoPlaying: false,
   autoPlaySpeed: 2000,
   autoPlayMode: 'normal',
   lastPointResult: null,
-  rallyViewEnabled: false,
+  rallyViewEnabled: true,
   currentRallySequence: null,
   isRallyPlaying: false,
 
@@ -205,15 +208,30 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     
     const matchState = { ...state.currentMatch };
+    let interventionResult = null;
     
     if (instruction) {
       // 指示を適用
       const result = applyCoachInstruction(matchState, instruction);
       console.log(result.message);
+      
+      // 介入結果を保存
+      interventionResult = {
+        success: result.success,
+        instruction: instruction,
+        message: result.message
+      };
     } else {
       // nullの場合はスキップとして扱う
       // 介入回数は消費しないが、次の3ポイントは介入不可にする
       matchState.lastInterventionPoint = matchState.currentPointNumber;
+      
+      // スキップ結果を保存
+      interventionResult = {
+        success: false,
+        instruction: null,
+        message: '介入をスキップしました'
+      };
     }
     
     // 介入状態を即座にクリア
@@ -221,7 +239,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       currentMatch: matchState,
       currentIntervention: null,
       availableInstructions: [],
-      isWaitingForIntervention: false
+      isWaitingForIntervention: false,
+      lastInterventionResult: interventionResult
     });
     
     // 介入処理後は手動でポイント実行する必要がある
@@ -320,6 +339,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       currentIntervention: null,
       availableInstructions: [],
       isWaitingForIntervention: false,
+      lastInterventionResult: null,
       isMatchActive: false,
       isAutoPlaying: false,
       lastPointResult: null
@@ -344,5 +364,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ラリー再生状態設定
   setRallyPlaying: (playing: boolean) => {
     set({ isRallyPlaying: playing });
+  },
+
+  // 介入結果クリア
+  clearInterventionResult: () => {
+    set({ lastInterventionResult: null });
   }
 }));

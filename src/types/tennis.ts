@@ -147,6 +147,88 @@ export interface CoachInstruction {
   iconPath: string;
 }
 
+// ===== ポイント結果詳細 =====
+
+// ポイント終了の基本カテゴリ
+export type PointResultCategory = 
+  | 'winner'         // 決めた（攻撃的勝利）
+  | 'forced_error'   // 相手を崩して勝利
+  | 'unforced_error' // 相手のミス
+  | 'ace'            // エース
+  | 'service_winner' // サービスウィナー
+  | 'let'            // やり直し
+  | 'double_fault';  // ダブルフォルト
+
+// 詳細な終了理由
+export type DetailedPointEndReason =
+  // ネット系
+  | 'net_cord'        // ネットに当たった
+  | 'hit_net'         // ネットにヒット
+  | 'touch_net'       // ネットタッチ
+  
+  // アウト系  
+  | 'out_baseline'    // ベースラインアウト
+  | 'out_sideline'    // サイドラインアウト
+  | 'out_long'        // 長すぎてアウト
+  | 'out_wide'        // 横に逸れてアウト
+  
+  // みんなミス系
+  | 'missed_return'   // リターンできず
+  | 'late_swing'      // スイングが遅れた
+  | 'misjudged'       // 判断ミス
+  | 'overwhelmed'     // 圧倒されて
+  
+  // 決定打系
+  | 'clean_winner'    // クリーンウィナー
+  | 'passing_shot'    // パッシングショット
+  | 'drop_shot'       // ドロップショット
+  | 'lob_winner'      // ロブウィナー
+  | 'volley_winner'   // ボレーウィナー
+  | 'ace_serve'       // エースサーブ
+  | 'service_winner'  // サービスウィナー
+  
+  // 特殊
+  | 'double_fault'    // ダブルフォルト
+  | 'foot_fault'      // フットフォルト
+  | 'time_violation'; // 時間切れ
+
+// アニメーション情報を含むポイント結果
+export interface DetailedPointResult {
+  // 基本情報
+  winner: 'home' | 'away';
+  category: PointResultCategory;
+  detailedReason: DetailedPointEndReason;
+  description: string;
+  
+  // アニメーション用情報
+  ballTrajectory: {
+    startPosition: { x: number; y: number };
+    endPosition: { x: number; y: number };
+    hitNetAt?: { x: number; y: number }; // ネットに当たった位置
+    maxHeight: number;
+    speed: number;
+  };
+  
+  playerActions: {
+    homePlayer: PlayerAction;
+    awayPlayer: PlayerAction;
+  };
+  
+  // 演出用
+  intensity: number; // 0-1
+  dramaticEffect?: 'slow_motion' | 'freeze_frame' | 'zoom_in';
+  audioEffect?: string[];
+}
+
+export interface PlayerAction {
+  type: 'serve' | 'return' | 'stroke' | 'volley' | 'lob' | 'drop' | 'miss' | 'wait';
+  success: boolean;
+  reactionTime: number; // ms
+  position: { x: number; y: number };
+  targetPosition: { x: number; y: number };
+  movementType: 'normal' | 'rush' | 'defensive' | 'stretch' | 'dive';
+}
+
 // ===== 試合進行 =====
 
 export interface MatchConfig {

@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { InterventionOpportunity, CoachInstruction } from '@/types/tennis';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useGameAudio } from '@/hooks/useGameAudio';
 
 interface InterventionModalProps {
   opportunity: InterventionOpportunity;
@@ -24,7 +25,13 @@ export default function InterventionModal({
   const [timeLeft, setTimeLeft] = useState(timeLimit);
   const [selectedInstruction, setSelectedInstruction] = useState<CoachInstruction | null>(null);
   
+  // 音響管理
+  const { playUISound } = useGameAudio();
+  
   useEffect(() => {
+    // モーダル表示時に介入機会通知音を再生
+    playUISound('intervention_available');
+    
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -37,17 +44,22 @@ export default function InterventionModal({
     }, 1000);
     
     return () => clearInterval(timer);
-  }, [onSelect]);
+  }, [onSelect, playUISound]);
   
   const handleSelect = (instruction: CoachInstruction) => {
+    playUISound('select');
     setSelectedInstruction(instruction);
   };
   
   const handleConfirm = () => {
+    if (selectedInstruction) {
+      playUISound('intervention_success');
+    }
     onSelect(selectedInstruction);
   };
   
   const handleSkip = () => {
+    playUISound('click');
     onSelect(null);
   };
   
